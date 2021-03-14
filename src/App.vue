@@ -32,6 +32,7 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator'
+import { encodeAsVarUInt64, encodeAsVarInt64 } from './varint'
 
 const INT64_MIN = -(1n << 63n)
 const INT64_MAX = (1n << 63n) - 1n
@@ -44,15 +45,15 @@ export default class App extends Vue {
   inputInt = ""
 
   get binaryHex(): string {
-    const result = []
-    this.tryConvert(this.inputInt)?.forEach((n: number) => {
+    const result = new Array<string>()
+    this.tryConvert(this.inputInt)?.forEach(n => {
       result.push(this.printHex(n))
     })
     return result.join(" ")
   }
   get javaByteArray(): string {
-    const result = []
-    this.tryConvert(this.inputInt)?.forEach((n: number) => {
+    const result = new Array<string>()
+    this.tryConvert(this.inputInt)?.forEach(n => {
       result.push("0x" + this.printHex(n))
     })
     if (result.length === 0) {
@@ -61,7 +62,7 @@ export default class App extends Vue {
     return `new byte[]{${result.join(", ")}}`
   }
 
-  tryConvert(inputInt: string): number[] | undefined {
+  tryConvert(inputInt: string): Uint8Array | undefined {
     if (inputInt.trim() === "") {
       return undefined
     }
@@ -73,35 +74,20 @@ export default class App extends Vue {
           if (num < UINT64_MIN || num > UINT64_MAX) {
             return undefined
           }
-          return this.bytesVarUInt64(num)
+          return encodeAsVarUInt64(num)
         case "varint64":
           if (num < INT64_MIN || num > INT64_MAX) {
             return undefined
           }
-          return this.bytesVarUInt64((num << 1n) ^ (num >> 63n))
+          return encodeAsVarInt64(num)
       }
-    } catch (e: SyntaxError) {
+    } catch (e) {
       // ignore syntax error
+      if (!(e instanceof SyntaxError)) {
+        throw e
+      }
     }
     return undefined
-  }
-
-  bytesVarUInt64(num: bigint): number[] {
-    const result = []
-    for (let i = 0; i < 9; i++) {
-      let byte = num & 0x7Fn
-      if (num > 0x7Fn) {
-        byte |= 0x80n
-      }
-      result.push(Number(byte))
-
-      num >>= 7n
-      if (num === 0n) {
-        return result
-      }
-    }
-
-    return result
   }
 
   printHex(n: number): string {
@@ -110,7 +96,7 @@ export default class App extends Vue {
     for (let i = 0; i < 2 - str.length; i++) {
       zeros += "0"
     }
-    return (zeros + str).toUpperCase()
+    return zeros + str
   }
 }
 </script>
