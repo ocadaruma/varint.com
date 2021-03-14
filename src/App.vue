@@ -54,7 +54,11 @@ export default class App extends Vue {
   get javaByteArray(): string {
     const result = new Array<string>()
     this.tryConvert(this.inputInt)?.forEach(n => {
-      result.push("0x" + this.printHex(n))
+      if (n >= 0x80) {
+        result.push("-0x" + (0x100 - n).toString(16))
+      } else {
+        result.push("0x" + n.toString(16))
+      }
     })
     if (result.length === 0) {
       return ""
